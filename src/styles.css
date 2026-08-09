@@ -1,0 +1,676 @@
+/* Latin subset only — the UI is English and payloads render in the system mono. */
+@font-face {
+  font-family: "Archivo Variable";
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2")
+    format("woff2-variations");
+}
+
+/*
+  Two-colour thermal printing on label stock: black, one red ribbon, nothing
+  else. Red is reserved for the three things worth a second ribbon — the
+  symbology of the current read, the printer-busy light, and failures.
+*/
+:root {
+  color-scheme: light dark;
+
+  --stock: #e7e6e0;
+  --stock-hi: #f5f4ef;
+  --stock-sunk: #dcdbd3;
+  --ink: #191a16;
+  --ink-mid: #6e6f66;
+  --ink-soft: #9c9c92;
+  --rule: #c9c8bf;
+  --signal: #bf3018;
+  --scrim: rgba(231, 230, 224, 0.92);
+
+  --label: "Archivo Variable", "Helvetica Neue", Arial, sans-serif;
+  --data: ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", "DejaVu Sans Mono", Menlo,
+    Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stock: #121310;
+    --stock-hi: #1c1d19;
+    --stock-sunk: #0c0d0b;
+    --ink: #eae9e0;
+    --ink-mid: #8a8b80;
+    --ink-soft: #5f6057;
+    --rule: #313229;
+    --signal: #ff5533;
+    --scrim: rgba(18, 19, 16, 0.92);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--stock);
+  color: var(--ink);
+  font-family: var(--label);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 4px;
+}
+
+/* Every small uppercase label in the app speaks in the same voice. */
+.promise,
+.source-name,
+.status-text,
+.format,
+.kind,
+.result-source,
+.act,
+.history-head h2,
+.stub-source,
+.stub-time,
+.vf-status,
+.drop-veil {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-stretch: 92%;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 0;
+}
+
+/* Masthead ---------------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wordmark {
+  font-size: 18px;
+  font-weight: 800;
+  font-stretch: 80%;
+  letter-spacing: 0.005em;
+}
+
+.promise {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+/*
+  A stable bar pattern derived from the current read. Not a real symbology —
+  a fingerprint, so the same code always draws the same bars.
+*/
+/* Printed edge to edge, the way a strip comes off a roll. */
+.fingerprint {
+  display: flex;
+  height: 10px;
+  margin: -5px -14px -1px;
+}
+
+.fingerprint span {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.fingerprint span[data-ink] {
+  background: var(--ink);
+}
+
+.fingerprint.is-blank span[data-ink] {
+  background: var(--rule);
+}
+
+/* Sources ----------------------------------------------------------------- */
+
+.sources {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 11px;
+  background: var(--stock-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    transform 60ms ease;
+}
+
+.source svg {
+  flex: none;
+  color: var(--ink-mid);
+  transition: color 120ms ease;
+}
+
+.source-name {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  font-stretch: 86%;
+}
+
+.source kbd {
+  margin-left: auto;
+  font-family: var(--data);
+  font-size: 9.5px;
+  color: var(--ink-soft);
+}
+
+.source:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.source:hover:not(:disabled) svg {
+  color: var(--ink);
+}
+
+.source:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.source:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+/* Status ------------------------------------------------------------------ */
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 12px;
+  margin-top: -4px;
+}
+
+.status-text {
+  font-size: 8.5px;
+  color: var(--ink-mid);
+}
+
+.status[data-kind="ok"] .status-text {
+  color: var(--ink);
+}
+
+.status[data-kind="error"] .status-text {
+  color: var(--signal);
+}
+
+.status[data-kind="busy"] .status-text {
+  color: var(--ink);
+}
+
+/* The printer-busy light. */
+.status[data-kind="busy"] .status-text::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  background: var(--signal);
+  animation: pulse 800ms steps(2, end) infinite;
+}
+
+.status-detail {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-mid);
+}
+
+/* The read ---------------------------------------------------------------- */
+
+.stage {
+  flex: none;
+}
+
+/* Perforation: the read tears off from the controls above it. */
+.stage::before {
+  content: "";
+  display: block;
+  height: 3px;
+  margin-bottom: 10px;
+  background-image: radial-gradient(circle, var(--rule) 1px, transparent 1.2px);
+  background-size: 7px 3px;
+}
+
+.result {
+  background: var(--stock-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 10px 12px;
+  animation: feed 300ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.format {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--signal);
+}
+
+.kind,
+.result-source {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+
+.kind::before {
+  content: "·";
+  margin-right: 8px;
+  color: var(--ink-soft);
+}
+
+.result-source {
+  margin-left: auto;
+  color: var(--ink-soft);
+}
+
+.payload {
+  font-family: var(--data);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 9px 0 10px;
+  max-height: 138px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  cursor: text;
+}
+
+.result-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 9px;
+  border-top: 1px solid var(--rule);
+}
+
+.act {
+  font-family: var(--label);
+  font-size: 8.5px;
+  padding: 4px 8px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.act:hover {
+  border-color: var(--ink);
+}
+
+.act.is-danger {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+.also {
+  font-size: 10.5px;
+  color: var(--ink-mid);
+}
+
+.result.is-empty {
+  animation: none;
+  background: transparent;
+  border-style: dashed;
+}
+
+.result.is-empty .format {
+  color: var(--ink-soft);
+}
+
+.prompt {
+  margin-top: 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-mid);
+}
+
+/* History ----------------------------------------------------------------- */
+
+.history {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--rule);
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 8px;
+}
+
+.history-head h2 {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--ink-mid);
+}
+
+.count {
+  font-family: var(--data);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+
+.history-head .act {
+  margin-left: auto;
+}
+
+.history-empty {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-mid);
+  padding-bottom: 14px;
+}
+
+.stubs {
+  list-style: none;
+  overflow-y: auto;
+  padding-bottom: 14px;
+}
+
+.stub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--rule);
+}
+
+.stub-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stub-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stub-meta .format {
+  color: var(--ink-mid);
+}
+
+.stub-source,
+.stub-time {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.stub-time {
+  margin-left: auto;
+}
+
+.stub-text {
+  font-family: var(--data);
+  font-size: 11.5px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stub.is-open .stub-text {
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+
+.stub-tools {
+  display: flex;
+  gap: 4px;
+  flex: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.stub:hover .stub-tools,
+.stub:focus-within .stub-tools {
+  opacity: 1;
+}
+
+/* Camera ------------------------------------------------------------------ */
+
+.viewfinder-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background: var(--scrim);
+  animation: fade 140ms ease both;
+}
+
+.viewfinder {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--stock-hi);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.viewfinder video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--stock-sunk);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.viewfinder video.is-live {
+  opacity: 1;
+}
+
+.reticle {
+  position: absolute;
+  inset: 28px 28px 66px;
+  pointer-events: none;
+}
+
+.reticle i {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--signal);
+}
+
+.reticle i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.reticle i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+.reticle i:nth-child(3) {
+  bottom: 0;
+  right: 0;
+  border-left: 0;
+  border-top: 0;
+}
+.reticle i:nth-child(4) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+
+/* Nothing to frame when the camera never started. */
+.viewfinder.is-dark .viewfinder-bar {
+  border-top: 0;
+  align-items: flex-start;
+  padding: 12px;
+}
+
+.viewfinder-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-top: 1px solid var(--rule);
+}
+
+.vf-status {
+  font-size: 8.5px;
+  color: var(--ink-mid);
+}
+
+.vf-status.is-error {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--signal);
+}
+
+.viewfinder-bar .act {
+  margin-left: auto;
+  flex: none;
+}
+
+/* Drop -------------------------------------------------------------------- */
+
+.drop-veil {
+  position: fixed;
+  inset: 8px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--signal);
+  border-radius: 3px;
+  background: var(--scrim);
+  color: var(--signal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  pointer-events: none;
+}
+
+/* Motion ------------------------------------------------------------------ */
+
+@keyframes feed {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-5px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
