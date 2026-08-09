@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# `tauri icon` also emits mobile assets; Qwikodo currently targets desktop only.
+src-tauri/icons/64x64.png
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -59,6 +59,9 @@ Create a release bundle for the current platform with:
 npm run tauri build
 ```
 
+The source application artwork lives in `assets/macOS/AppIcon.iconset`. After updating its 1024px
+master image, regenerate the native Linux, macOS, and Windows icons with `npm run icons`.
+
 Unsigned builds are appropriate for development and CI verification. Public macOS and Windows
 downloads should be code-signed; macOS downloads distributed outside the App Store should also be
 notarized.

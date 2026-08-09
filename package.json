@@ -19,6 +19,7 @@
     "check": "npm run build && npm test && npm run check:versions && npm run check:rust",
     "check:versions": "node scripts/check-versions.mjs",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings",
+    "icons": "tauri icon assets/macOS/AppIcon.iconset/icon_512x512@2x.png",
     "tauri": "tauri"
   },
   "dependencies": {
