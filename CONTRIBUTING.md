@@ -27,6 +27,7 @@ Before opening a pull request:
 ```sh
 npm run build
 npm test
+npm run check:versions
 npm run check:rust
 ```
 

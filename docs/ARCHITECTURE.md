@@ -64,4 +64,5 @@ application database, sync layer, export, or background service.
 The application version appears in `package.json`, `src-tauri/Cargo.toml`, and
 `src-tauri/tauri.conf.json`; all three must stay aligned. Native bundles are built on their target
 operating systems in GitHub Actions. Code signing and macOS notarization are deliberately separate
-from compilation so pull requests never need release credentials.
+from compilation so pull requests never need release credentials. CI applies an ad-hoc macOS
+signature, while tagged builds remain draft releases until their signing status has been reviewed.

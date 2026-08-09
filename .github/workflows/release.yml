@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: true
+
+jobs:
+  release:
+    name: Package ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            platform: ubuntu-22.04
+            rust-target: ""
+            args: --bundles appimage
+          - name: Windows x64
+            platform: windows-latest
+            rust-target: ""
+            args: --bundles nsis
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            rust-target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+          - name: macOS Intel
+            platform: macos-latest
+            rust-target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tauri
+        with:
+          rust-target: ${{ matrix.rust-target }}
+
+      - name: Verify tag matches application version
+        shell: bash
+        run: npm run check:versions
+        env:
+          EXPECTED_TAG: ${{ github.ref_name }}
+
+      - name: Build draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Qwikodo ${{ github.ref_name }}
+          releaseBody: >-
+            Automated draft. macOS artifacts use an ad-hoc signature and Windows artifacts are
+            unsigned; verify signing before publishing.
+          releaseDraft: true
+          generateReleaseNotes: true
+          args: ${{ matrix.args }}

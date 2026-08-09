@@ -68,12 +68,19 @@ notarized.
 ```sh
 npm run build          # TypeScript check + production web bundle
 npm test               # Generate and round-trip all 22 barcode fixtures offline
+npm run check:versions # Ensure npm, Cargo, and Tauri versions match
 npm run check:rust     # rustfmt + clippy with warnings denied
 ```
 
 The fixture check loads both ZXing WASM binaries directly from `node_modules`; a CDN outage cannot
 turn it into a false pass. GitHub Actions repeats these checks and compiles native bundles on Linux,
 Windows, Intel macOS, and Apple Silicon macOS.
+
+Every pull request receives installable workflow artifacts for those four targets. Pushing a tag
+matching the app version (for example, `v0.1.0`) creates a draft GitHub Release with the same
+artifacts and generated release notes. macOS CI artifacts use an ad-hoc signature; Windows CI
+artifacts are unsigned. Review and replace them with properly signed builds before publishing to a
+general audience.
 
 ## Technical overview
 

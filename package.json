@@ -16,6 +16,8 @@
     "preview": "vite preview",
     "test": "npm run test:fixtures",
     "test:fixtures": "node scripts/fixtures.mjs",
+    "check": "npm run build && npm test && npm run check:versions && npm run check:rust",
+    "check:versions": "node scripts/check-versions.mjs",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings",
     "tauri": "tauri"
   },
