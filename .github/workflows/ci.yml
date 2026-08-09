@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+
+jobs:
+  quality:
+    name: Frontend and decoder checks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run check:versions
+
+  native:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            platform: ubuntu-22.04
+            rust-target: ""
+            args: --bundles appimage
+            rust-checks: true
+          - name: Windows x64
+            platform: windows-latest
+            rust-target: ""
+            args: --bundles nsis
+            rust-checks: false
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            rust-target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+            rust-checks: false
+          - name: macOS Intel
+            platform: macos-latest
+            rust-target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+            rust-checks: false
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-tauri
+        with:
+          rust-target: ${{ matrix.rust-target }}
+
+      - name: Check Rust formatting
+        if: matrix.rust-checks
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Lint release Rust code
+        if: matrix.rust-checks
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --release --all-targets --all-features -- -D warnings
+
+      - name: Build native bundle
+        uses: tauri-apps/tauri-action@v1
+        with:
+          args: ${{ matrix.args }}
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: Qwikodo-[platform]-[arch]-[bundle]

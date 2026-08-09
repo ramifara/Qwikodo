@@ -1,0 +1,56 @@
+name: Set up Tauri build
+description: Install native libraries, Node, Rust, and locked project dependencies
+
+inputs:
+  rust-target:
+    description: Optional Rust compilation target
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install Linux libraries
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          file \
+          libayatana-appindicator3-dev \
+          libclang-dev \
+          libdbus-1-dev \
+          libegl-dev \
+          libpipewire-0.3-dev \
+          librsvg2-dev \
+          libssl-dev \
+          libwayland-dev \
+          libwebkit2gtk-4.1-dev \
+          libxcb1-dev \
+          libxdo-dev \
+          libxrandr-dev \
+          patchelf \
+          pkg-config \
+          xdg-utils
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy,rustfmt
+        targets: ${{ inputs.rust-target }}
+
+    - name: Restore Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ./src-tauri -> target
+
+    - name: Install JavaScript dependencies
+      shell: bash
+      run: npm ci

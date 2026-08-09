@@ -118,7 +118,7 @@ export function CameraModal({
           <span className={error ? "vf-status is-error" : "vf-status"}>
             {error ?? (live ? "Looking for a code" : "Starting the camera")}
           </span>
-          <button className="act" onClick={onClose}>
+          <button className="act" onClick={onClose} autoFocus>
             Close
           </button>
         </div>
