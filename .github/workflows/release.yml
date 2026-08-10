@@ -50,7 +50,7 @@ jobs:
           - name: Linux x64
             platform: ubuntu-22.04
             rust-target: ""
-            args: --bundles appimage
+            args: --bundles appimage,deb,rpm
           - name: Windows x64
             platform: windows-latest
             rust-target: ""
@@ -74,11 +74,21 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only set on macOS runners; tauri-action/tauri-bundler notarize and
+          # sign with a Developer ID only when these are all present, so
+          # Linux/Windows legs build ad-hoc/unsigned exactly as before.
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
         with:
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseName: Qwikodo ${{ needs.prepare.outputs.tag }}
           releaseBody: >-
-            Automated release. macOS artifacts use an ad-hoc signature and Windows artifacts are
+            Automated release. macOS artifacts are signed and notarized with a Developer ID when
+            the signing secrets are configured, otherwise ad-hoc signed. Windows artifacts are
             unsigned; verify downloaded artifacts before distributing them.
           releaseDraft: true
           generateReleaseNotes: true
@@ -96,3 +106,89 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ needs.prepare.outputs.tag }}
         run: gh release edit "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
+
+  winget:
+    name: Update winget manifest
+    needs: [prepare, publish]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # Requires a one-time `wingetcreate` submission of RamiFara.Qwikodo and a
+    # WINGET_PAT repo secret (a classic PAT with public_repo scope). Until
+    # both exist, this job is a no-op rather than a failure.
+    if: ${{ secrets.WINGET_PAT != '' }}
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: RamiFara.Qwikodo
+          installers-regex: '-setup\.exe$'
+          version: ${{ needs.prepare.outputs.tag }}
+          token: ${{ secrets.WINGET_PAT }}
+
+  homebrew:
+    name: Update Homebrew cask
+    needs: [prepare, publish]
+    runs-on: macos-latest
+    timeout-minutes: 10
+    # Requires a RamiFara/homebrew-tap repo and a TAP_PUSH_TOKEN secret (a
+    # classic PAT with repo scope on that tap). Until both exist, this job is
+    # a no-op rather than a failure.
+    if: ${{ secrets.TAP_PUSH_TOKEN != '' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG_NAME: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v6
+        with:
+          repository: RamiFara/homebrew-tap
+          token: ${{ secrets.TAP_PUSH_TOKEN }}
+          path: tap
+
+      - name: Download release dmgs and compute checksums
+        id: sha
+        run: |
+          set -euo pipefail
+          version="${TAG_NAME#v}"
+          mkdir dmg
+          gh release download "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" --dir dmg \
+            --pattern "*aarch64*.dmg" --pattern "*x64*.dmg"
+          {
+            echo "version=${version}"
+            echo "arm_sha=$(shasum -a 256 dmg/*aarch64*.dmg | cut -d' ' -f1)"
+            echo "intel_sha=$(shasum -a 256 dmg/*x64*.dmg | cut -d' ' -f1)"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Render and push cask
+        env:
+          VERSION: ${{ steps.sha.outputs.version }}
+          ARM_SHA: ${{ steps.sha.outputs.arm_sha }}
+          INTEL_SHA: ${{ steps.sha.outputs.intel_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p tap/Casks
+          cat > tap/Casks/qwikodo.rb <<CASK
+          cask "qwikodo" do
+            version "${VERSION}"
+
+            on_arm do
+              sha256 "${ARM_SHA}"
+              url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/Qwikodo_${VERSION}_aarch64.dmg"
+            end
+            on_intel do
+              sha256 "${INTEL_SHA}"
+              url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/Qwikodo_${VERSION}_x64.dmg"
+            end
+
+            name "Qwikodo"
+            desc "Small, private, offline QR code and barcode scanner"
+            homepage "https://github.com/${GITHUB_REPOSITORY}"
+
+            app "Qwikodo.app"
+          end
+          CASK
+          cd tap
+          git config user.name "qwikodo-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Casks/qwikodo.rb
+          git diff --cached --quiet || git commit -m "qwikodo ${TAG_NAME}"
+          git push
