@@ -41,7 +41,11 @@ jobs:
       matrix:
         include:
           - name: Linux x64
-            platform: ubuntu-22.04
+            # xcap's Wayland/PipeWire capture backend (libspa 0.10) calls C
+            # APIs (e.g. spa_meta_region_is_valid) newer than what
+            # ubuntu-22.04's system PipeWire/SPA dev headers provide; 24.04
+            # ships PipeWire 1.0.x, which is new enough.
+            platform: ubuntu-24.04
             rust-target: ""
             args: --bundles appimage
             rust-checks: true

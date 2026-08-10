@@ -48,7 +48,9 @@ jobs:
       matrix:
         include:
           - name: Linux x64
-            platform: ubuntu-22.04
+            # See the matching comment in ci.yml: needs PipeWire/SPA headers
+            # newer than ubuntu-22.04 ships for xcap's libspa 0.10 dependency.
+            platform: ubuntu-24.04
             rust-target: ""
             args: --bundles appimage,deb,rpm
           - name: Windows x64
@@ -114,15 +116,21 @@ jobs:
     timeout-minutes: 15
     # Requires a one-time `wingetcreate` submission of RamiFara.Qwikodo and a
     # WINGET_PAT repo secret (a classic PAT with public_repo scope). Until
-    # both exist, this job is a no-op rather than a failure.
-    if: ${{ secrets.WINGET_PAT != '' }}
+    # both exist, this job's step is a no-op rather than a failure.
+    # (`secrets` can't be referenced in a job-level `if:` — GitHub rejects the
+    # whole workflow file if you try — so the guard lives on the step instead,
+    # via a job-level env var that steps' `if:` is allowed to read.)
+    env:
+      WINGET_PAT: ${{ secrets.WINGET_PAT }}
     steps:
-      - uses: vedantmgoyal9/winget-releaser@v2
+      - name: Update winget manifest
+        if: ${{ env.WINGET_PAT != '' }}
+        uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: RamiFara.Qwikodo
           installers-regex: '-setup\.exe$'
           version: ${{ needs.prepare.outputs.tag }}
-          token: ${{ secrets.WINGET_PAT }}
+          token: ${{ env.WINGET_PAT }}
 
   homebrew:
     name: Update Homebrew cask
@@ -130,21 +138,24 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     # Requires a RamiFara/homebrew-tap repo and a TAP_PUSH_TOKEN secret (a
-    # classic PAT with repo scope on that tap). Until both exist, this job is
-    # a no-op rather than a failure.
-    if: ${{ secrets.TAP_PUSH_TOKEN != '' }}
+    # classic PAT with repo scope on that tap). Until both exist, every step
+    # below is a no-op rather than a failure (see the `winget` job above for
+    # why the guard is per-step instead of a job-level `if:`).
     env:
+      TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG_NAME: ${{ needs.prepare.outputs.tag }}
     steps:
       - name: Checkout tap
+        if: ${{ env.TAP_PUSH_TOKEN != '' }}
         uses: actions/checkout@v6
         with:
           repository: RamiFara/homebrew-tap
-          token: ${{ secrets.TAP_PUSH_TOKEN }}
+          token: ${{ env.TAP_PUSH_TOKEN }}
           path: tap
 
       - name: Download release dmgs and compute checksums
+        if: ${{ env.TAP_PUSH_TOKEN != '' }}
         id: sha
         run: |
           set -euo pipefail
@@ -159,6 +170,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Render and push cask
+        if: ${{ env.TAP_PUSH_TOKEN != '' }}
         env:
           VERSION: ${{ steps.sha.outputs.version }}
           ARM_SHA: ${{ steps.sha.outputs.arm_sha }}
