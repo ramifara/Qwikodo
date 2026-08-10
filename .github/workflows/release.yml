@@ -43,6 +43,11 @@ jobs:
     needs: prepare
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
+    env:
+      # A referenced secret that isn't configured evaluates to an empty
+      # string, not "unset" — so this is only "true" when every Apple
+      # signing secret actually has a value.
+      HAS_APPLE_SECRETS: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -72,19 +77,38 @@ jobs:
         with:
           rust-target: ${{ matrix.rust-target }}
 
-      - name: Build draft release
+      # tauri-action/tauri-bundler treat an *empty-but-present* APPLE_CERTIFICATE
+      # as "please sign" and try to import it into a keychain, which fails
+      # outright. So these are two separate steps rather than one step with
+      # conditionally-empty env values: the unsigned path never sets the
+      # Apple env vars at all, not even to "".
+      - name: Build draft release (signed)
+        if: ${{ runner.os == 'macOS' && env.HAS_APPLE_SECRETS == 'true' }}
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Only set on macOS runners; tauri-action/tauri-bundler notarize and
-          # sign with a Developer ID only when these are all present, so
-          # Linux/Windows legs build ad-hoc/unsigned exactly as before.
-          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: Qwikodo ${{ needs.prepare.outputs.tag }}
+          releaseBody: >-
+            Automated release. macOS artifacts are signed and notarized with a Developer ID when
+            the signing secrets are configured, otherwise ad-hoc signed. Windows artifacts are
+            unsigned; verify downloaded artifacts before distributing them.
+          releaseDraft: true
+          generateReleaseNotes: true
+          args: ${{ matrix.args }}
+
+      - name: Build draft release (unsigned)
+        if: ${{ !(runner.os == 'macOS' && env.HAS_APPLE_SECRETS == 'true') }}
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseName: Qwikodo ${{ needs.prepare.outputs.tag }}
