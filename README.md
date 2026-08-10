@@ -9,6 +9,12 @@ or network client. Scan history stays in the app's local storage. The only outbo
 explicit **Open link** button, which hands an `http`, `https`, `mailto`, or `tel` link to your
 default application.
 
+<p align="center">
+  <img src="docs/screenshots/idle.png" alt="Qwikodo idle state, ready to scan" width="270">
+  <img src="docs/screenshots/result.png" alt="Qwikodo showing a decoded QR code and history" width="270">
+  <img src="docs/screenshots/generate.png" alt="Qwikodo generating a QR code from text" width="270">
+</p>
+
 ## What it reads
 
 Qwikodo uses ZXing-C++ through a locally bundled WebAssembly module. Supported formats include:
@@ -38,6 +44,44 @@ history.
 
 Qwikodo has no general filesystem, shell, or HTTP permission. Its Tauri capability allows only the
 core window APIs and opening user-selected links with the four schemes listed above.
+
+## Generate a code
+
+Press <kbd>⌘/Ctrl</kbd> + <kbd>G</kbd>, or use the **As QR** button on any result or history entry,
+to turn text back into a QR code. Copy it as an image or save it as a PNG — nothing is written to
+history, since a generated code is an output, not a read.
+
+## Quick access
+
+Qwikodo stays out of the way until you need it, then answers instantly:
+
+- **Tray icon** — closing the window leaves Qwikodo running quietly in the tray/menu bar. The tray
+  menu can scan the screen or clipboard directly, show the window, toggle **Start at login**, or
+  quit. (On a Linux desktop with no tray support, closing the window quits the app instead.)
+- **Global hotkey** — <kbd>Alt/Option</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> scans the screen, and
+  <kbd>Alt/Option</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> scans the clipboard, from anywhere, even
+  while Qwikodo is hidden. The window pops up with the result and the payload lands on your
+  clipboard automatically. (Global shortcuts can't register under Wayland — see the launcher recipe
+  below for a native alternative.)
+- **CLI flags** — `qwikodo --scan-screen`, `qwikodo --scan-clipboard`, or `qwikodo --generate
+  "text"` trigger an action whether or not Qwikodo is already running; a second launch hands its
+  arguments to the running instance instead of opening a duplicate window.
+- **Deep links** — `qwikodo://scan-screen`, `qwikodo://scan-clipboard`, `qwikodo://show`, and
+  `qwikodo://generate?text=...` do the same from any tool that can open a URL.
+
+### Launcher recipes
+
+Bind a short alias in your launcher of choice so a scan is a keystroke away:
+
+- **Windows (PowerToys Run / Win+R):** make a shortcut named `qs.lnk` with target
+  `Qwikodo.exe --scan-screen` in a folder on your `PATH`, then type `qs` in Run or PowerToys Run.
+- **macOS (Spotlight / Raycast):** create a Shortcuts.app "Open URL" action pointed at
+  `qwikodo://scan-screen`, name it `qs`, and it's searchable from Spotlight; in Raycast, add a
+  Quicklink for the same URL.
+- **Linux (KRunner / GNOME search):** Qwikodo's installed `.desktop` file exposes *Scan screen* and
+  *Scan clipboard* as desktop actions, which most application launchers surface directly. Under
+  Wayland, where the global hotkey plugin can't register, bind your compositor's own shortcut
+  setting to run `qwikodo --scan-screen` instead.
 
 ## Install and run from source
 
