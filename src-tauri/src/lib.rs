@@ -25,6 +25,16 @@ fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+fn capture_all_screens() -> Result<Vec<Vec<u8>>, String> {
+    let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
+    let mut shots = Vec::with_capacity(monitors.len());
+    for monitor in monitors {
+        let img = monitor.capture_image().map_err(|e| e.to_string())?;
+        shots.push(encode_png(img.width(), img.height(), img.as_raw())?);
+    }
+    Ok(shots)
+}
+
 /// Captures every monitor and returns how many images are waiting.
 /// The window hides itself first so the app never scans its own UI.
 #[tauri::command]
@@ -36,15 +46,7 @@ async fn capture_screens(window: Window, buf: State<'_, CaptureBuf>) -> Result<u
         std::thread::sleep(std::time::Duration::from_millis(280));
     }
 
-    let result = (|| -> Result<Vec<Vec<u8>>, String> {
-        let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
-        let mut shots = Vec::with_capacity(monitors.len());
-        for monitor in monitors {
-            let img = monitor.capture_image().map_err(|e| e.to_string())?;
-            shots.push(encode_png(img.width(), img.height(), img.as_raw())?);
-        }
-        Ok(shots)
-    })();
+    let result = capture_all_screens();
 
     if was_visible {
         let _ = window.show();

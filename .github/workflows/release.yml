@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,8 +16,31 @@ env:
   CI: true
 
 jobs:
+  prepare:
+    name: Validate release version
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve and validate release tag
+        id: release
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="v${version}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          EXPECTED_TAG="${tag}" npm run check:versions
+
   release:
     name: Package ${{ matrix.name }}
+    needs: prepare
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
     strategy:
@@ -46,22 +70,29 @@ jobs:
         with:
           rust-target: ${{ matrix.rust-target }}
 
-      - name: Verify tag matches application version
-        shell: bash
-        run: npm run check:versions
-        env:
-          EXPECTED_TAG: ${{ github.ref_name }}
-
       - name: Build draft release
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Qwikodo ${{ github.ref_name }}
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: Qwikodo ${{ needs.prepare.outputs.tag }}
           releaseBody: >-
-            Automated draft. macOS artifacts use an ad-hoc signature and Windows artifacts are
-            unsigned; verify signing before publishing.
+            Automated release. macOS artifacts use an ad-hoc signature and Windows artifacts are
+            unsigned; verify downloaded artifacts before distributing them.
           releaseDraft: true
           generateReleaseNotes: true
           args: ${{ matrix.args }}
+
+  publish:
+    name: Publish GitHub release
+    needs: [prepare, release]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Publish completed release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
