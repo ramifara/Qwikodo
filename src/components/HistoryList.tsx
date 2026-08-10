@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useHistory, type ScanEntry } from "../store/history";
 import { copyText } from "../lib/clipboard";
 import { relativeTime } from "../lib/payload";
@@ -10,12 +10,24 @@ const SOURCE_TAG: Record<ScanEntry["source"], string> = {
   screen: "Screen",
 };
 
-export function HistoryList({ entries }: { entries: ScanEntry[] }) {
+export function HistoryList({
+  entries,
+  onGenerate,
+}: {
+  entries: ScanEntry[];
+  onGenerate: (text: string) => void;
+}) {
   const remove = useHistory((s) => s.remove);
   const clearAll = useHistory((s) => s.clearAll);
   const [open, setOpen] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [query, setQuery] = useState("");
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? entries.filter((e) => e.content.toLowerCase().includes(q)) : entries;
+  }, [entries, query]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -33,6 +45,15 @@ export function HistoryList({ entries }: { entries: ScanEntry[] }) {
       <header className="history-head">
         <h2>History</h2>
         {entries.length > 0 && <span className="count">{entries.length}</span>}
+        {entries.length > 10 && (
+          <input
+            className="history-search"
+            type="text"
+            placeholder="Search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        )}
         {entries.length > 0 && (
           <button
             className={confirming ? "act is-danger" : "act"}
@@ -45,9 +66,11 @@ export function HistoryList({ entries }: { entries: ScanEntry[] }) {
 
       {entries.length === 0 ? (
         <p className="history-empty">Scans you make are kept here, on this computer only.</p>
+      ) : shown.length === 0 ? (
+        <p className="history-empty">No history entries match "{query}".</p>
       ) : (
         <ul className="stubs">
-          {entries.map((entry) => (
+          {shown.map((entry) => (
             <li key={entry.id} className={open === entry.id ? "stub is-open" : "stub"}>
               <button
                 className="stub-main"
@@ -64,6 +87,9 @@ export function HistoryList({ entries }: { entries: ScanEntry[] }) {
               <span className="stub-tools">
                 <button className="act" onClick={() => copyText(entry.content)}>
                   Copy
+                </button>
+                <button className="act" onClick={() => onGenerate(entry.content)}>
+                  As QR
                 </button>
                 <button className="act" onClick={() => remove(entry.id)}>
                   Delete

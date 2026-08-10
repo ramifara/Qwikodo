@@ -333,6 +333,43 @@ body {
   cursor: text;
 }
 
+.wifi-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 9px;
+}
+
+.wifi-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--stock-sunk);
+  border-radius: 2px;
+}
+
+.wifi-label {
+  flex: none;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.wifi-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--data);
+  font-size: 11.5px;
+  user-select: text;
+  cursor: text;
+}
+
 .result-foot {
   display: flex;
   align-items: center;
@@ -413,6 +450,18 @@ body {
   font-family: var(--data);
   font-size: 10px;
   color: var(--ink-soft);
+}
+
+.history-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 7px;
+  background: var(--stock-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--label);
+  font-size: 10.5px;
 }
 
 .history-head .act {
@@ -611,6 +660,60 @@ body {
 .viewfinder-bar .act {
   margin-left: auto;
   flex: none;
+}
+
+/* Generate ------------------------------------------------------------------ */
+
+.viewfinder.generate {
+  max-width: 360px;
+}
+
+.generate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.generate-input {
+  resize: none;
+  padding: 8px 9px;
+  background: var(--stock-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--data);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.generate-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: var(--stock-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.generate-preview img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.generate-hint {
+  max-width: 220px;
+  padding: 0 16px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-mid);
 }
 
 /* Drop -------------------------------------------------------------------- */

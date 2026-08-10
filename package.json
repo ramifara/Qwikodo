@@ -1,7 +1,7 @@
 {
   "name": "qwikodo",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small, private, cross-platform barcode scanner.",
   "license": "MIT",
   "type": "module",

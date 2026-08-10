@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { ScanEntry } from "../store/history";
 import { copyText } from "../lib/clipboard";
-import { isOpenable, payloadKind } from "../lib/payload";
+import { isOpenable, parseWifi, payloadKind } from "../lib/payload";
 
 const SOURCE_NAME: Record<ScanEntry["source"], string> = {
   file: "From file",
@@ -11,9 +11,18 @@ const SOURCE_NAME: Record<ScanEntry["source"], string> = {
   screen: "From screen",
 };
 
-export function ResultLabel({ entry, alsoFound }: { entry: ScanEntry; alsoFound: number }) {
+export function ResultLabel({
+  entry,
+  alsoFound,
+  onGenerate,
+}: {
+  entry: ScanEntry;
+  alsoFound: number;
+  onGenerate: (text: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
   const kind = payloadKind(entry.content);
+  const wifi = kind === "Wi-Fi network" ? parseWifi(entry.content) : null;
 
   useEffect(() => setCopied(false), [entry.id]);
   useEffect(() => {
@@ -32,6 +41,27 @@ export function ResultLabel({ entry, alsoFound }: { entry: ScanEntry; alsoFound:
 
       <p className="payload">{entry.content}</p>
 
+      {wifi && (
+        <div className="wifi-fields">
+          <div className="wifi-field">
+            <span className="wifi-label">Network</span>
+            <span className="wifi-value">{wifi.ssid}</span>
+            <button className="act" onClick={() => copyText(wifi.ssid)}>
+              Copy
+            </button>
+          </div>
+          {wifi.password && (
+            <div className="wifi-field">
+              <span className="wifi-label">Password</span>
+              <span className="wifi-value">{wifi.password}</span>
+              <button className="act" onClick={() => copyText(wifi.password!)}>
+                Copy
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <footer className="result-foot">
         <button className="act" onClick={async () => setCopied(await copyText(entry.content))}>
           {copied ? "Copied" : "Copy"}
@@ -41,6 +71,9 @@ export function ResultLabel({ entry, alsoFound }: { entry: ScanEntry; alsoFound:
             Open link
           </button>
         )}
+        <button className="act" onClick={() => onGenerate(entry.content)}>
+          As QR
+        </button>
         {alsoFound > 0 && (
           <span className="also">
             {alsoFound} more {alsoFound === 1 ? "code" : "codes"} in that image, saved below
