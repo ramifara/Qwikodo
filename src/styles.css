@@ -92,6 +92,8 @@ body {
 .result-source,
 .act,
 .history-head h2,
+.settings-kicker,
+.setting-name,
 .stub-source,
 .stub-time,
 .vf-status,
@@ -114,9 +116,16 @@ body {
 
 .masthead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.brand {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
 }
 
 .wordmark {
@@ -131,6 +140,62 @@ body {
   font-weight: 600;
   color: var(--ink-soft);
   text-align: right;
+}
+
+.mast-actions {
+  flex: none;
+  display: flex;
+  gap: 5px;
+}
+
+.mast-action {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  background: var(--stock-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--label);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 60ms ease;
+}
+
+.mast-action svg {
+  color: var(--signal);
+}
+
+.mast-action kbd {
+  font-family: var(--data);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
+}
+
+.mast-action.is-icon {
+  width: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.mast-action.is-icon svg {
+  color: var(--ink-mid);
+}
+
+.mast-action:hover {
+  border-color: var(--ink);
+}
+
+.mast-action:active {
+  transform: translateY(1px);
 }
 
 /*
@@ -714,6 +779,164 @@ body {
   letter-spacing: 0;
   text-transform: none;
   color: var(--ink-mid);
+}
+
+/* Settings ---------------------------------------------------------------- */
+
+.settings-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 49px 14px 14px;
+  background: color-mix(in srgb, var(--scrim) 46%, transparent);
+  animation: fade 120ms ease both;
+}
+
+.settings-panel {
+  width: min(340px, 100%);
+  overflow: hidden;
+  background: var(--stock-hi);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.settings-panel::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 5px);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.settings-head h2 {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 800;
+  font-stretch: 82%;
+}
+
+.settings-kicker {
+  display: block;
+  font-size: 8px;
+  color: var(--signal);
+}
+
+.settings-list {
+  padding: 0 12px;
+}
+
+.setting {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 66px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+
+.setting[data-disabled] {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.setting-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-name {
+  font-size: 9px;
+  color: var(--ink);
+}
+
+.setting-detail {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-mid);
+}
+
+.setting input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 17px;
+  background: var(--stock-sunk);
+  border: 1px solid var(--ink-soft);
+  border-radius: 1px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  background: var(--ink-soft);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.setting input:checked + .switch {
+  background: color-mix(in srgb, var(--signal) 16%, var(--stock-sunk));
+  border-color: var(--signal);
+}
+
+.setting input:checked + .switch::after {
+  background: var(--signal);
+  transform: translateX(13px);
+}
+
+.setting input:focus-visible + .switch {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.settings-error {
+  margin: 10px 12px 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--signal);
+}
+
+.settings-foot {
+  padding: 10px 12px;
+  font-family: var(--data);
+  font-size: 8.5px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 410px) {
+  .promise,
+  .mast-action kbd {
+    display: none;
+  }
 }
 
 /* Drop -------------------------------------------------------------------- */

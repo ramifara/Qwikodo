@@ -5,7 +5,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CameraModal } from "./components/CameraModal";
 import { GenerateModal } from "./components/GenerateModal";
 import { HistoryList } from "./components/HistoryList";
+import { GenerateMark, SettingsMark } from "./components/Icons";
 import { ResultLabel } from "./components/ResultLabel";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { SourceGrid } from "./components/SourceGrid";
 import { writeClipboardText } from "./lib/clipboard";
 import { warmDecoder, type Scan } from "./lib/decode";
@@ -75,6 +77,7 @@ export default function App() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generateSeed, setGenerateSeed] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [dropping, setDropping] = useState(false);
 
   const picker = useRef<HTMLInputElement>(null);
@@ -209,13 +212,13 @@ export default function App() {
         s: readScreens,
         g: () => openGenerate(""),
       };
-      if (!act[key] || cameraOpen || generateOpen) return;
+      if (!act[key] || cameraOpen || generateOpen || settingsOpen) return;
       e.preventDefault();
       act[key]();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cameraOpen, generateOpen, cameraReady, readClipboard, readScreens, openGenerate]);
+  }, [cameraOpen, generateOpen, settingsOpen, cameraReady, readClipboard, readScreens, openGenerate]);
 
   return (
     <div
@@ -255,8 +258,26 @@ export default function App() {
       />
 
       <header className="masthead">
-        <h1 className="wordmark">Qwikodo</h1>
-        <p className="promise">Nothing leaves this computer</p>
+        <div className="brand">
+          <h1 className="wordmark">Qwikodo</h1>
+          <p className="promise">Nothing leaves this computer</p>
+        </div>
+        <div className="mast-actions">
+          <button className="mast-action" onClick={() => openGenerate("")}>
+            <GenerateMark />
+            <span>Generate</span>
+            <kbd>{MOD}G</kbd>
+          </button>
+          <button
+            className="mast-action is-icon"
+            aria-label="Settings"
+            title="Settings"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <SettingsMark />
+          </button>
+        </div>
       </header>
 
       <div className={current ? "fingerprint" : "fingerprint is-blank"} aria-hidden="true">
@@ -302,6 +323,7 @@ export default function App() {
       {generateOpen && (
         <GenerateModal seed={generateSeed} onClose={() => setGenerateOpen(false)} />
       )}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {dropping && <div className="drop-veil">Drop to read</div>}
     </div>
   );

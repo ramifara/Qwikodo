@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -25,6 +26,29 @@ struct CaptureBuf(Mutex<Vec<Vec<u8>>>);
 /// none), so window close falls back to quitting outright when this is false.
 #[derive(Default)]
 struct HasTray(AtomicBool);
+
+/// The intentionally small set of background behaviors users can opt out of.
+/// These live in the native config directory because they must be known before
+/// the webview mounts (and before a tray or global shortcut is registered).
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(default, rename_all = "camelCase")]
+struct Preferences {
+    keep_running_in_tray: bool,
+    global_shortcuts: bool,
+    start_at_login: bool,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            keep_running_in_tray: true,
+            global_shortcuts: true,
+            start_at_login: false,
+        }
+    }
+}
+
+struct PreferencesState(Mutex<Preferences>);
 
 /// Something the tray, a global hotkey, a CLI flag, or a `qwikodo://` deep
 /// link asked the app to do. All four funnel through `dispatch` below.
@@ -173,6 +197,46 @@ fn take_startup_action(pending: State<'_, PendingAction>) -> Option<Action> {
     pending.0.lock().unwrap().take()
 }
 
+fn preferences_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map(|dir| dir.join("preferences.json"))
+        .map_err(|e| e.to_string())
+}
+
+fn load_preferences<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Preferences {
+    let Ok(path) = preferences_path(app) else {
+        return Preferences::default();
+    };
+    std::fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+fn persist_preferences<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    preferences: &Preferences,
+) -> Result<(), String> {
+    let path = preferences_path(app)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "preferences path has no parent".to_string())?;
+    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec_pretty(preferences).map_err(|e| e.to_string())?;
+    std::fs::write(path, bytes).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_preferences(
+    app: tauri::AppHandle,
+    state: State<'_, PreferencesState>,
+) -> Result<Preferences, String> {
+    let mut preferences = state.0.lock().map_err(|e| e.to_string())?;
+    preferences.start_at_login = app.autolaunch().is_enabled().unwrap_or(false);
+    Ok(preferences.clone())
+}
+
 /// Reads `--scan-screen`, `--scan-clipboard`, and `--generate [text]` out of
 /// CLI args. Deliberately hand-rolled instead of pulling in `tauri-plugin-cli`
 /// (and the clap dependency tree it drags along) for three flags.
@@ -241,6 +305,10 @@ fn build_tray<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()>
                 let toggled = if enabled { mgr.disable() } else { mgr.enable() };
                 if toggled.is_ok() {
                     let _ = toggle_target.set_checked(!enabled);
+                    if let Ok(mut preferences) = app.state::<PreferencesState>().0.lock() {
+                        preferences.start_at_login = !enabled;
+                        let _ = persist_preferences(app, &preferences);
+                    }
                 }
             }
             "quit" => app.exit(0),
@@ -261,6 +329,93 @@ fn build_tray<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()>
     }
     tray.build(app)?;
     Ok(())
+}
+
+fn configure_tray<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<(), String> {
+    if enabled {
+        if app.tray_by_id("main").is_none() {
+            build_tray(app).map_err(|e| e.to_string())?;
+        }
+        app.state::<HasTray>().0.store(true, Ordering::Relaxed);
+    } else {
+        app.remove_tray_by_id("main");
+        app.state::<HasTray>().0.store(false, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+fn configure_global_shortcuts<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<(), String> {
+    let manager = app.global_shortcut();
+    manager.unregister_all().map_err(|e| e.to_string())?;
+    if !enabled {
+        return Ok(());
+    }
+
+    for (mods, code, action) in [
+        (
+            Modifiers::ALT | Modifiers::SHIFT,
+            Code::KeyS,
+            Action::ScanScreen,
+        ),
+        (
+            Modifiers::ALT | Modifiers::SHIFT,
+            Code::KeyV,
+            Action::ScanClipboard,
+        ),
+    ] {
+        let shortcut = Shortcut::new(Some(mods), code);
+        if let Err(error) = manager.on_shortcut(shortcut, move |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                dispatch(app, action.clone());
+            }
+        }) {
+            let _ = manager.unregister_all();
+            return Err(error.to_string());
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_preferences(
+    app: tauri::AppHandle,
+    state: State<'_, PreferencesState>,
+    mut preferences: Preferences,
+) -> Result<Preferences, String> {
+    if !preferences.keep_running_in_tray {
+        // Launch-at-login uses --hidden, which only makes sense when there is a
+        // tray from which the app can be restored.
+        preferences.start_at_login = false;
+    }
+
+    let current = state.0.lock().map_err(|e| e.to_string())?.clone();
+
+    let autostart_enabled = app.autolaunch().is_enabled().unwrap_or(false);
+    if preferences.start_at_login != autostart_enabled {
+        let autolaunch = app.autolaunch();
+        if preferences.start_at_login {
+            autolaunch.enable()
+        } else {
+            autolaunch.disable()
+        }
+        .map_err(|e| e.to_string())?;
+    }
+    if preferences.global_shortcuts != current.global_shortcuts {
+        configure_global_shortcuts(&app, preferences.global_shortcuts)?;
+    }
+    if preferences.keep_running_in_tray != current.keep_running_in_tray {
+        configure_tray(&app, preferences.keep_running_in_tray)?;
+    }
+
+    persist_preferences(&app, &preferences)?;
+    *state.0.lock().map_err(|e| e.to_string())? = preferences.clone();
+    Ok(preferences)
 }
 
 /// Handles a batch of deep-link URLs, dispatching whichever ones map to a
@@ -303,9 +458,18 @@ pub fn run() {
             app.manage(PendingAction::default());
             app.manage(HasTray::default());
 
-            let has_tray = build_tray(app.handle()).is_ok();
+            let mut preferences = load_preferences(app.handle());
+            if !preferences.keep_running_in_tray {
+                let _ = app.autolaunch().disable();
+            }
+            preferences.start_at_login = app.autolaunch().is_enabled().unwrap_or(false);
+            let keep_running_in_tray = preferences.keep_running_in_tray;
+            let global_shortcuts = preferences.global_shortcuts;
+            app.manage(PreferencesState(Mutex::new(preferences)));
+
+            let has_tray = keep_running_in_tray && build_tray(app.handle()).is_ok();
             if !has_tray {
-                eprintln!("qwikodo: no tray available on this desktop; close will quit");
+                eprintln!("qwikodo: tray disabled or unavailable; close will quit");
             }
             app.state::<HasTray>().0.store(has_tray, Ordering::Relaxed);
 
@@ -316,35 +480,15 @@ pub fn run() {
                 handle_deep_links(app.handle(), urls);
             }
 
-            let gs = app.global_shortcut();
-            for (mods, code, action) in [
-                (
-                    Modifiers::ALT | Modifiers::SHIFT,
-                    Code::KeyS,
-                    Action::ScanScreen,
-                ),
-                (
-                    Modifiers::ALT | Modifiers::SHIFT,
-                    Code::KeyV,
-                    Action::ScanClipboard,
-                ),
-            ] {
-                let shortcut = Shortcut::new(Some(mods), code);
-                let registered = gs.on_shortcut(shortcut, move |app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        dispatch(app, action.clone());
-                    }
-                });
-                if let Err(e) = registered {
-                    eprintln!("qwikodo: couldn't register global shortcut: {e}");
-                }
+            if let Err(e) = configure_global_shortcuts(app.handle(), global_shortcuts) {
+                eprintln!("qwikodo: couldn't configure global shortcuts: {e}");
             }
 
             let args: Vec<String> = std::env::args().skip(1).collect();
             let hidden = args.iter().any(|a| a == "--hidden");
             if let Some(action) = action_for_cli(&args) {
                 dispatch(app.handle(), action);
-            } else if !hidden {
+            } else if !hidden || !has_tray {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
@@ -363,6 +507,9 @@ pub fn run() {
                 {
                     api.prevent_close();
                     let _ = window.hide();
+                } else {
+                    api.prevent_close();
+                    window.app_handle().exit(0);
                 }
             }
         })
@@ -374,6 +521,8 @@ pub fn run() {
             write_clipboard_image,
             save_png,
             take_startup_action,
+            get_preferences,
+            set_preferences,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -389,4 +538,25 @@ pub fn run() {
         #[cfg(not(target_os = "macos"))]
         let _ = app_handle;
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Preferences;
+
+    #[test]
+    fn preferences_are_opt_out_by_default() {
+        let preferences: Preferences = serde_json::from_str("{}").unwrap();
+        assert!(preferences.keep_running_in_tray);
+        assert!(preferences.global_shortcuts);
+        assert!(!preferences.start_at_login);
+    }
+
+    #[test]
+    fn preferences_accept_partial_older_files() {
+        let preferences: Preferences =
+            serde_json::from_str(r#"{"keepRunningInTray":false}"#).unwrap();
+        assert!(!preferences.keep_running_in_tray);
+        assert!(preferences.global_shortcuts);
+    }
 }
