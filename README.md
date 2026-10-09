@@ -47,17 +47,20 @@ core window APIs and opening user-selected links with the four schemes listed ab
 
 ## Generate a code
 
-Press <kbd>⌘/Ctrl</kbd> + <kbd>G</kbd>, or use the **As QR** button on any result or history entry,
-to turn text back into a QR code. Copy it as an image or save it as a PNG — nothing is written to
-history, since a generated code is an output, not a read.
+Use the **Generate** button in the app header, press <kbd>⌘/Ctrl</kbd> + <kbd>G</kbd>, or use the
+**As QR** button on any result or history entry to turn text back into a QR code. Copy it as an
+image or save it as a PNG — nothing is written to history, since a generated code is an output,
+not a read.
 
 ## Quick access
 
 Qwikodo stays out of the way until you need it, then answers instantly:
 
-- **Tray icon** — closing the window leaves Qwikodo running quietly in the tray/menu bar. The tray
-  menu can scan the screen or clipboard directly, show the window, toggle **Start at login**, or
-  quit. (On a Linux desktop with no tray support, closing the window quits the app instead.)
+- **Tray icon** — by default, closing the window leaves Qwikodo running quietly in the tray/menu
+  bar. The tray menu can scan the screen or clipboard directly, show the window, toggle **Start at
+  login**, or quit. Turn off **Keep running after close** in Settings to remove the tray icon and
+  make Close quit the app completely. (On a Linux desktop with no tray support, closing the window
+  quits the app instead.)
 - **Global hotkey** — <kbd>Alt/Option</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> scans the screen, and
   <kbd>Alt/Option</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> scans the clipboard, from anywhere, even
   while Qwikodo is hidden. The window pops up with the result and the payload lands on your
@@ -68,6 +71,10 @@ Qwikodo stays out of the way until you need it, then answers instantly:
   arguments to the running instance instead of opening a duplicate window.
 - **Deep links** — `qwikodo://scan-screen`, `qwikodo://scan-clipboard`, `qwikodo://show`, and
   `qwikodo://generate?text=...` do the same from any tool that can open a URL.
+
+The small Settings panel also lets you disable the global scan shortcuts or launch-at-login. These
+preferences apply immediately and are the complete configuration surface; scan and generation
+behavior remain deliberately fixed and fast.
 
 ### Launcher recipes
 

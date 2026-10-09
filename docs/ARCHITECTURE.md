@@ -56,8 +56,10 @@ the operating system after an explicit user action; Qwikodo does not fetch that 
 ## Persistence
 
 zustand's persist middleware writes a single `qwikodo-history` value to the webview's local storage.
-Each entry contains the decoded text, format, source, timestamp, and random ID. Qwikodo has no other
-application database, sync layer, export, or background service.
+Each entry contains the decoded text, format, source, timestamp, and random ID. Three background
+preferences (tray-on-close, global shortcuts, and launch-at-login) are stored as a small JSON file
+in the native app config directory so Rust can apply them before the webview mounts. Qwikodo has no
+application database, sync layer, export, or remote background service.
 
 ## Release surface
 

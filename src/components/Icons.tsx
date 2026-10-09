@@ -37,3 +37,17 @@ export const ScreenMark = () => (
     <path d="M6 14h4" />
   </svg>
 );
+
+export const GenerateMark = () => (
+  <svg {...base}>
+    <path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4z" />
+    <path d="M9.5 9.5h1.5v1.5H9.5zM12 9.5h1.5V13.5H9.5V12" />
+  </svg>
+);
+
+export const SettingsMark = () => (
+  <svg {...base}>
+    <circle cx="8" cy="8" r="2.1" />
+    <path d="M8 1.8v1.5M8 12.7v1.5M14.2 8h-1.5M3.3 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6" />
+  </svg>
+);
