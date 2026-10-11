@@ -23,7 +23,7 @@ jobs:
     outputs:
       tag: ${{ steps.release.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Resolve and validate release tag
         id: release
@@ -72,7 +72,7 @@ jobs:
             args: --target x86_64-apple-darwin --bundles dmg
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-tauri
         with:
           rust-target: ${{ matrix.rust-target }}
@@ -172,7 +172,7 @@ jobs:
     steps:
       - name: Checkout tap
         if: ${{ env.TAP_PUSH_TOKEN != '' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: RamiFara/homebrew-tap
           token: ${{ env.TAP_PUSH_TOKEN }}
